@@ -1,20 +1,19 @@
 package sample;
 
 import javafx.application.Application;
+import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
+import javafx.event.ActionEvent;
 import javax.swing.*;
+//import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.Socket;
+import java.net.*;
 
 
 public class Client extends Application {
@@ -49,7 +48,7 @@ public class Client extends Application {
 
 
     @Override
-    public void start(Stage primaryStage) throws Exception{
+    public void start(Stage primaryStage) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("sample.fxml"));
         primaryStage.setTitle("Hello World");
         primaryStage.setScene(new Scene(root, 300, 445));
@@ -61,11 +60,11 @@ public class Client extends Application {
         //get server RTSP port and IP address from the command line
         //------------------
         int RTSP_server_port = 8554; //Integer.parseInt(argv[1]);
-        String ServerHost ="127.0.0.1"; //argv[0];
+        String ServerHost = "127.0.0.1"; //argv[0];
         InetAddress ServerIPAddr = InetAddress.getByName(ServerHost);
 
         //get video filename to request:
-        VideoFileName = "/home/gamerstation/Code/rtsp_server/media/movie.mjpeg"  ; //argv[2];
+        VideoFileName = "/home/gamerstation/Code/rtsp_server/media/movie.mjpeg"; //argv[2];
 
         //Establish a TCP connection with the server to exchange RTSP messages
         //------------------
@@ -75,14 +74,14 @@ public class Client extends Application {
         theClient.RTSPsocket = new Socket("127.0.0.1", 8554);
 
         //Set input and output stream filters:
-        RTSPBufferedReader = new BufferedReader(new InputStreamReader(theClient.RTSPsocket.getInputStream()) );
-        RTSPBufferedWriter = new BufferedWriter(new OutputStreamWriter(theClient.RTSPsocket.getOutputStream()) );
+        RTSPBufferedReader = new BufferedReader(new InputStreamReader(theClient.RTSPsocket.getInputStream()));
+        RTSPBufferedWriter = new BufferedWriter(new OutputStreamWriter(theClient.RTSPsocket.getOutputStream()));
 
         //init RTSP state:
         state = INIT;
     }
-    public Client()
-    {
+
+    public Client() {
         timer = new Timer(20, new timerListener());
         timer.setInitialDelay(0);
         timer.setCoalesce(true);
@@ -95,4 +94,183 @@ public class Client extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
+    @FXML
+    public void setup(ActionEvent event) {
+        System.out.println("Hello");
+        if (state == INIT) {
+            //Init non-blocking RTPsocket that will be used to receive data
+            try {
+                //construct a new DatagramSocket to receive RTP packets from the server, on port RTP_RCV_PORT
+                //RTPsocket = ...
+                RTPsocket = new DatagramSocket(RTP_RCV_PORT);
+
+
+                //   set TimeOut value of the socket to 5msec.
+
+
+                RTPsocket.setSoTimeout(5);
+                //set TimeOut value of the socket to 5msec.
+                //....
+
+            } catch (SocketException se) {
+                System.out.println("Socket exception: " + se);
+                System.exit(0);
+            }
+
+            //init RTSP sequence number
+            RTSPSeqNb = 1;
+
+            //Send SETUP message to the server
+            send_RTSP_request("SETUP");
+
+            //Wait for the response
+            if (parse_server_response() != 200)
+                System.out.println("Invalid Server Response");
+            else {
+                //change RTSP state and print new state
+                state = READY;
+                System.out.println("New RTSP state: READY");
+                //System.out.println("New RTSP state: ....");
+            }
+        }//else if state != INIT then do nothing
+    }
+
+    @FXML
+    public void play(ActionEvent e) {
+        System.out.println("Play Button pressed !");
+
+        if (state == READY) {
+
+
+            //increase RTSP sequence number
+
+
+            RTSPSeqNb++;
+
+//send PLAY message to the server
+
+
+            send_RTSP_request("PLAY");
+
+
+//   wait for the response
+
+
+            if (parse_server_response() != 200)
+                System.out.println("Invalid Server Response");
+            else {
+
+
+//   change RTSP state and print out new state
+
+
+                state = PLAYING;
+                System.out.println("New RTSP state: PLAYING");
+
+
+//   start the timer
+
+
+                timer.start();
+            }
+        }
+    }
+
+    @FXML
+    public void play(ActionEvent e) {
+        System.out.println("Play Button pressed !");
+
+        if (state == READY) {
+
+
+            //increase RTSP sequence number
+
+
+            RTSPSeqNb++;
+
+//send PLAY message to the server
+
+
+            send_RTSP_request("PLAY");
+
+
+//   wait for the response
+
+
+            if (parse_server_response() != 200)
+                System.out.println("Invalid Server Response");
+            else {
+
+
+//   change RTSP state and print out new state
+
+
+                state = PLAYING;
+                System.out.println("New RTSP state: PLAYING");
+
+
+//   start the timer
+
+
+                timer.start();
+            }
+        }
+    }
+
+    @FXML
+    public void pause(ActionEvent e) {
+        {
+
+            //System.out.println("Pause Button pressed !");
+
+            if (state == PLAYING) {
+                //increase RTSP sequence number
+
+                //........
+
+                //Send PAUSE message to the server
+                send_RTSP_request("PAUSE");
+
+                //Wait for the response
+                if (parse_server_response() != 200)
+                    System.out.println("Invalid Server Response");
+                else {
+                    //change RTSP state and print out new state
+                    //........
+                    //System.out.println("New RTSP state: ...");
+
+                    //stop the timer
+                    timer.stop();
+                }
+            }
+        }
+    }
+    @FXML
+    public void stop(ActionEvent e) {
+        //System.out.println("Teardown Button pressed !");
+
+        //increase RTSP sequence number
+        // ..........
+
+
+        //Send TEARDOWN message to the server
+        send_RTSP_request("TEARDOWN");
+
+        //Wait for the response
+        if (parse_server_response() != 200)
+            System.out.println("Invalid Server Response");
+        else {
+            //change RTSP state and print out new state
+            //........
+            //System.out.println("New RTSP state: ...");
+
+            //stop the timer
+            timer.stop();
+
+            //exit
+            System.exit(0);
+        }
+    }
+
 }
